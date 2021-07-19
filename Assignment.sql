@@ -1,5 +1,5 @@
 /*
-1.	List of Personsí full name, all their fax and phone numbers, 
+1.	List of Persons‚Äô full name, all their fax and phone numbers, 
 as well as the phone number and fax of the company they are working for (if any). 
 */
 select P.FullName as Employee_FullName, P.FaxNumber as Employee_FaxNumber, 
@@ -21,7 +21,7 @@ where CustomerCategoryID != 1;
 --combine select no1 and select no2 to get all the company info and employee info
 
 /*
-2.	If the customer's primary contact person has the same phone number as the customerís phone number, 
+2.	If the customer's primary contact person has the same phone number as the customer‚Äôs phone number, 
 list the customer companies. 
 */
 select C.CustomerName as CompanyName from Sales.Customers C join Application.People P on C.PrimaryContactPersonID = P.PersonID
@@ -60,7 +60,7 @@ where SP.StateProvinceName != 'Alabama' and SP.StateProvinceName != 'Georgia'
 and year(I.InvoiceDate) = 2014;
 
 /*
-7.	List of States and Avg dates for processing (confirmed delivery date ñ order date).
+7.	List of States and Avg dates for processing (confirmed delivery date ‚Äì order date).
 */
 select SP.StateProvinceName, avg(DATEDIFF(day,O.OrderDate,I.ConfirmedDeliveryTime)) as AverageProcessingDays
 from Application.StateProvinces SP 
@@ -71,7 +71,7 @@ join Sales.Orders O on I.OrderID = O.OrderID
 group by SP.StateProvinceName;
 
 /*
-8.	List of States and Avg dates for processing (confirmed delivery date ñ order date) by month.
+8.	List of States and Avg dates for processing (confirmed delivery date ‚Äì order date) by month.
 */
 select SP.StateProvinceName, avg(DATEDIFF(day,O.OrderDate,I.ConfirmedDeliveryTime)) as AverageProcessingDays, 
 month(O.OrderDate) as Month
@@ -94,7 +94,7 @@ group by StockItemName
 having sum(Quantity) > 0
 
 /*
-10.	List of Customers and their phone number, together with the primary contact personís name, 
+10.	List of Customers and their phone number, together with the primary contact person‚Äôs name, 
 to whom we did not sell more than 10  mugs (search by name) in the year 2016
 */
 select C.CustomerName, C.PhoneNumber, P.FullName
@@ -135,7 +135,7 @@ join Application.Countries Countries on SP.CountryID = Countries.CountryID
 where cast(I.ConfirmedDeliveryTime as date) = '2014-07-01'
 
 /*13.	List of stock item groups and total quantity purchased, total quantity sold, 
-and the remaining stock quantity (quantity purchased ñ quantity sold)*/
+and the remaining stock quantity (quantity purchased ‚Äì quantity sold)*/
 select * from Warehouse.StockItemStockGroups SISG join Warehouse.StockGroups SG
 on SISG.StockGroupID = SG.StockGroupID
 join(
@@ -149,7 +149,7 @@ join Sales. Orders O on o.OrderID = OL.orderid
 
 /*
 14.	List of Cities in the US and the stock item that the city got the most deliveries in 2016. 
-If the city did not purchase any stock items in 2016, print ìNo Salesî.
+If the city did not purchase any stock items in 2016, print ‚ÄúNo Sales‚Äù.
 */
 select CT.CityID, count(SI.StockItemName) from Sales.Orders O join Sales.OrderLines OL 
 on O.orderid = OL.OrderID
@@ -191,13 +191,44 @@ SI.StockItemName,
  /*
  17.	Total quantity of stock items sold in 2015, group by country of manufacturing.
  */
- select SI.StockItemName, count(OL.StockItemID) TotalOrder2015, 
+ /*
+  select SI.StockItemName, count(OL.StockItemID) TotalOrder2015, 
  JSON_VALUE(SI.CustomFields, '$.CountryOfManufacture') as CountryOfManufacture
  from Sales.OrderLines OL join Sales.Orders O on OL.OrderID = O.OrderID
  join Warehouse.StockItems SI on SI.StockItemID = OL.StockItemID
  where year(O.OrderDate) = 2015
  group by SI.StockItemName, JSON_VALUE(SI.CustomFields, '$.CountryOfManufacture')
-
+ */
  /*
  
+ 18.Create a view that shows the total quantity of stock items of each stock group sold (in orders) 
+ by year 2013-2017. [Stock Group Name, 2013, 2014, 2015, 2016, 2017]
+ */
+ 
+ /*
+ */
+
+ /*
+ 20.Create a function, input: order id; return: total of that order. 
+ List invoices and use that function to attach the order total to the other fields of invoices. 
+ */
+/*
+create function sales_totalorderprice(@orderid int) 
+ returns int
+ as
+ begin
+DECLARE @price int
+select @price = sum(Quantity*UnitPrice)
+ from
+ Sales.Orders O join Sales.OrderLines OL on O.OrderID = OL.OrderID
+ where O.OrderID = @orderid;
+ return @price;
+ end;
+
+
+ create view InvoicesWithTotalOrderPrice
+ as
+ select *,dbo.sales_totalorderprice(Sales.Invoices.OrderID) TotalOrderPrice from sales.Invoices
+ 
+ select * from InvoicesWithTotalOrderPrice
  */
