@@ -232,3 +232,45 @@ select @price = sum(Quantity*UnitPrice)
  
  select * from InvoicesWithTotalOrderPrice
  */
+ /*
+ 21.Create a new table called ods.Orders. Create a stored procedure, 
+ with proper error handling and transactions, that input is a date; when executed, 
+ it would find orders of that day, calculate order total, 
+ and save the information (order id, order date, order total, customer id) into the new table. 
+ If a given date is already existing in the new table, throw an error and roll back. 
+ Execute the stored procedure 5 times using different dates. 
+ */
+ /*
+ create schema ods
+
+ create table ods.Orders(
+ OrderID int not null,
+ OrderDate datetime not null,
+ OrderTotal int not null,
+ CustomerId int not null
+ );
+
+ alter procedure Ods_Orders @Orderdate date
+ as
+ begin try
+ begin transaction
+ insert into ods.Orders
+ select O.OrderID,O.OrderDate,dbo.sales_totalorderprice(o.OrderID) TotalOrderPrice,
+ O.CustomerID
+ from Sales.Orders O join Sales.OrderLines OL on O.OrderID = OL.OrderID
+ where O.OrderDate = @Orderdate
+ commit transaction
+ end try 
+BEGIN CATCH
+  SELECT
+    ERROR_NUMBER() AS ErrorNumber,
+    ERROR_STATE() AS ErrorState,
+    ERROR_SEVERITY() AS ErrorSeverity,
+    ERROR_PROCEDURE() AS ErrorProcedure,
+    ERROR_LINE() AS ErrorLine,
+    ERROR_MESSAGE() AS ErrorMessage;
+END CATCH;
+
+exec Ods_Orders @orderdate ='2014-01-01'
+exec Ods_Orders @orderdate ='2013-01-01'
+*/
