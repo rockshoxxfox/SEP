@@ -199,14 +199,67 @@ SI.StockItemName,
  where year(O.OrderDate) = 2015
  group by SI.StockItemName, JSON_VALUE(SI.CustomFields, '$.CountryOfManufacture')
  */
- /*
- 
+
+
+
+/*
  18.Create a view that shows the total quantity of stock items of each stock group sold (in orders) 
  by year 2013-2017. [Stock Group Name, 2013, 2014, 2015, 2016, 2017]
  */
  
- /*
- */
+/*
+create view StockGoupsTotalQuanlity as
+select StockGroupName,[2013],[2014],[2015],[2016],[2017]
+from
+(
+select sg.StockGroupName StockGroupName, year(o.OrderDate) years, sum(ol.Quantity) total_quantity
+from 
+Sales.OrderLines ol join sales.Orders o on ol.OrderID = o.OrderID
+join Warehouse.StockItems i on ol.StockItemID = i.StockItemID
+join Warehouse.StockItemStockGroups ssg on ssg.StockItemID = ol.StockItemID
+join Warehouse.StockGroups sg on sg.StockGroupID = ssg.StockGroupID
+where year(o.OrderDate) in ( 2013, 2014, 2015, 2016, 2017)
+group by sg.StockGroupName, year(o.OrderDate)
+) p
+pivot
+(
+sum(p.total_quantity) 
+for years in
+([2013],[2014],[2015],[2016],[2017]) 
+)as pivotTable
+*/
+
+
+/*
+19.	Create a view that shows the total quantity of stock items of each stock group sold (in orders) 
+by year 2013-2017. [Year, Stock Group Name1, Stock Group Name2, Stock Group Name3, � , Stock Group Name10] 
+*/
+/*
+create view StockGoupsTotalQuanlityinYears as
+
+select years, [Clothing], [USB Novelties], [Computing Novelties], 
+[Novelty Items],[T-Shirts], [Mugs],[Furry Footwear],[Toys], [Packaging Materials]
+from
+(
+select year(o.OrderDate) years, sg.StockGroupName StockGroupName, sum(ol.Quantity) total_quantity
+from 
+Sales.OrderLines ol join sales.Orders o on ol.OrderID = o.OrderID
+join Warehouse.StockItems i on ol.StockItemID = i.StockItemID
+join Warehouse.StockItemStockGroups ssg on ssg.StockItemID = ol.StockItemID
+join Warehouse.StockGroups sg on sg.StockGroupID = ssg.StockGroupID
+where year(o.OrderDate) in ( 2013, 2014, 2015, 2016, 2017)
+group by sg.StockGroupName, year(o.OrderDate)
+) p
+pivot
+(
+sum(p.total_quantity)
+for StockGroupName in ([Clothing], [USB Novelties], [Computing Novelties],
+[Novelty Items],[T-Shirts], [Mugs],[Furry Footwear],[Toys], [Packaging Materials])
+) as pivotTable
+*/
+
+
+
 
  /*
  20.Create a function, input: order id; return: total of that order. 
@@ -274,3 +327,187 @@ END CATCH;
 exec Ods_Orders @orderdate ='2014-01-01'
 exec Ods_Orders @orderdate ='2013-01-01'
 */
+
+
+/*
+ 21.Create a new table called ods.Orders. Create a stored procedure, 
+ with proper error handling and transactions, that input is a date; when executed, 
+ it would find orders of that day, calculate order total, 
+ and save the information (order id, order date, order total, customer id) into the new table. 
+ If a given date is already existing in the new table, throw an error and roll back. 
+ Execute the stored procedure 5 times using different dates. 
+ */
+ /*
+ create schema ods
+
+ create table ods.Orders(
+ OrderID int not null,
+ OrderDate datetime not null,
+ OrderTotal int not null,
+ CustomerId int not null
+ );
+
+ alter procedure Ods_Orders @Orderdate date
+ as
+ begin try
+ begin transaction
+ insert into ods.Orders
+ select O.OrderID,O.OrderDate,dbo.sales_totalorderprice(o.OrderID) TotalOrderPrice,
+ O.CustomerID
+ from Sales.Orders O join Sales.OrderLines OL on O.OrderID = OL.OrderID
+ where O.OrderDate = @Orderdate
+ commit transaction
+ end try 
+BEGIN CATCH
+  SELECT
+    ERROR_NUMBER() AS ErrorNumber,
+    ERROR_STATE() AS ErrorState,
+    ERROR_SEVERITY() AS ErrorSeverity,
+    ERROR_PROCEDURE() AS ErrorProcedure,
+    ERROR_LINE() AS ErrorLine,
+    ERROR_MESSAGE() AS ErrorMessage;
+END CATCH;
+
+exec Ods_Orders @orderdate ='2014-01-01'
+exec Ods_Orders @orderdate ='2013-01-01'
+*/
+
+
+ /*
+ 22.Create a new table called ods.StockItem. 
+ It has following columns: [StockItemID], [StockItemName] ,[SupplierID] ,[ColorID] ,[UnitPackageID] ,
+ [OuterPackageID] ,[Brand] ,[Size] ,[LeadTimeDays] ,[QuantityPerOuter] ,[IsChillerStock] ,[Barcode] ,
+ [TaxRate]  ,[UnitPrice],[RecommendedRetailPrice] ,[TypicalWeightPerUnit] ,[MarketingComments]  ,
+ [InternalComments], [CountryOfManufacture], [Range], [Shelflife]. 
+ Migrate all the data in the original stock item table.
+ */
+ /*
+ create schema ods
+ CREATE TABLE ods.StockItems(
+	[StockItemID] [int] NOT NULL,
+	[StockItemName] [nvarchar](100) NOT NULL,
+	[SupplierID] [int] NOT NULL,
+	[ColorID] [int] NULL,
+	[UnitPackageID] [int] NOT NULL,
+	[OuterPackageID] [int] NOT NULL,
+	[Brand] [nvarchar](50) NULL,
+	[Size] [nvarchar](20) NULL,
+	[LeadTimeDays] [int] NOT NULL,
+	[QuantityPerOuter] [int] NOT NULL,
+	[IsChillerStock] [bit] NOT NULL,
+	[Barcode] [nvarchar](50) NULL,
+	[TaxRate] [decimal](18, 3) NOT NULL,
+	[UnitPrice] [decimal](18, 2) NOT NULL,
+	[RecommendedRetailPrice] [decimal](18, 2) NULL,
+	[TypicalWeightPerUnit] [decimal](18, 3) NOT NULL,
+	[MarketingComments] [nvarchar](max) NULL,
+	[InternalComments] [nvarchar](max) NULL,
+	[CountryOfManufacture] [nvarchar](50) NULL,
+	[Range] [NVARCHAR](50) NULL,
+	[Shelflife] [NVARCHAR](50) NULL
+)
+ 
+ 
+MERGE INTO ods.StockItems AS T
+USING Warehouse.StockItems AS R
+ON T.StockItemID = R.StockItemID
+WHEN NOT MATCHED BY TARGET 
+THEN INSERT VALUES 
+(R.StockItemID, R.StockItemName, R.SupplierID, R.ColorID, 
+R.UnitPackageID, R.OuterPackageID, R.Brand, R.Size, R.LeadTimeDays, 
+R.QuantityPerOuter, R.IsChillerStock, R.Barcode, R.TaxRate, R.UnitPrice,
+R.RecommendedRetailPrice, R.TypicalWeightPerUnit, R.MarketingComments,
+R.InternalComments, JSON_VALUE(R.CustomFields, '$.CountryOfManufacture'),
+JSON_VALUE(R.CustomFields, '$.Range'), JSON_VALUE(R.CustomFields, '$.ShelfLife'));
+
+
+
+
+
+*/
+
+
+/*
+23.	Rewrite your stored procedure in (21). Now with a given date, 
+it should wipe out all the order data prior to the input date and load the order data that was placed 
+in the next 7 days following the input date.
+*/
+/*
+ alter procedure Ods_Orders @Orderdate date
+ as
+ begin try
+ begin transaction
+
+ delete from ods.orders where 
+ datediff(dd,orderdate,@Orderdate) > 0
+ commit transaction
+ end try
+BEGIN CATCH
+  SELECT
+    ERROR_NUMBER() AS ErrorNumber,
+    ERROR_STATE() AS ErrorState,
+    ERROR_SEVERITY() AS ErrorSeverity,
+    ERROR_PROCEDURE() AS ErrorProcedure,
+    ERROR_LINE() AS ErrorLine,
+    ERROR_MESSAGE() AS ErrorMessage;
+END CATCH
+ begin try
+ begin transaction
+ insert into ods.Orders
+ select O.OrderID,O.OrderDate,dbo.sales_totalorderprice(o.OrderID) TotalOrderPrice,
+ O.CustomerID
+ from Sales.Orders O join Sales.OrderLines OL on O.OrderID = OL.OrderID
+ where O.OrderDate = @Orderdate
+ and DATEDIFF(dd,OrderDate,@Orderdate) <=7 
+ and DATEDIFF(dd,OrderDate,@Orderdate) >=0
+ commit transaction
+ end try 
+BEGIN CATCH
+  SELECT
+    ERROR_NUMBER() AS ErrorNumber,
+    ERROR_STATE() AS ErrorState,
+    ERROR_SEVERITY() AS ErrorSeverity,
+    ERROR_PROCEDURE() AS ErrorProcedure,
+    ERROR_LINE() AS ErrorLine,
+    ERROR_MESSAGE() AS ErrorMessage;
+END CATCH;
+*/
+
+/*
+25.	Revisit your answer in (19). Convert the result in JSON string and save it 
+to the server using TSQL FOR JSON PATH.
+*/
+/*
+select * from [dbo].[StockGoupsTotalQuanlity]
+for json auto
+*/
+/*26.	Revisit your answer in (19). Convert the result into an XML string and save it 
+to the server using TSQL FOR XML PATH.
+*/
+/*
+select * from [dbo].[StockGoupsTotalQuanlity]
+for xml auto
+*/
+/*27.	Create a new table called ods.ConfirmedDeviveryJson with 3 columns (id, date, value) . 
+Create a stored procedure, input is a date. 
+The logic would load invoice information (all columns) as well as invoice line information (all columns) 
+and forge them into a JSON string and then insert into the new table just created. 
+Then write a query to run the stored procedure for each DATE that customer id 1 got something delivered to him.
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
